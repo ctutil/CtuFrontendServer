@@ -1,0 +1,123 @@
+= Ctu Frontend Server
+:source-highlighter: highlight.js
+:toc:
+:icons: font
+:experimental:
+:pdf-page-layout: landscape
+:stem: latexmath
+
+== Who am I?
+
+I'm an embedded webserver with some frontend functions.
+You can use me either as a regular webserver for your project or
+if you don't want to distinguish the frontend side from the backend you
+are able to write easily an application which contains
+only one code base (instead of for example 2 projects, a frontend and a
+backend for the same application).
+
+== What kind of Smalltalk do I need?
+
+My Smalltalk dialect is Cuis Smalltalk. I suggest
+Cuis University as a base image. This program is tested
+on https://github.com/Cuis-University/Cuis-University/releases/tag/v5093.0[CuisUniversity-5093.image].
+
+== What about the dependencies?
+
+As many programs I also have some dependencies,
+if these are among the packages Cuis will install them
+automatically.
+
+My Dependencies are:
+
+    !requires: 'Cuis-Web' 1 38 nil!
+    !requires: 'WebClient' 1 22 nil!
+    !requires: 'Regex-Core' 1 10 nil!
+
+== How do I work
+
+I've a frontend and a backend part in one API. In the
+frontend side my basic language is d3. Currently I
+support `Bulma` or `Bootstrap 5` as a design framework.
+
+As a simple example you can check my `FSApp` class
+in the source code.
+
+== What does it mean: frontend AND backend?
+
+The easiest way to understand this let's have an example.
+
+Look at the following snippet:
+
+[source, Smalltalk]
+----
+		    d3s _ D3Server withServer: d3Server.
+		    d3s select: 'body button'; <1>
+		          on: 'click' service: '/greet' before: [' <2>
+		            requestBody = d3.select("[myrole=name]")
+		                                     .property("value");
+			    xhr.setRequestHeader("myheader", "hello");
+		          ']
+		          action: [ :rg |	<3>
+			   rg send200Response: ('Hello dear ',  (rg content) ,' from Smalltalk :)',
+			   'with myheader: ', (rg headerAt: 'myheader'))
+			    contentType: 'text/html; charset=utf-8'.
+			   ]
+		           after: ['   <4>
+				alert(JSON.stringify(xhr.response));
+			   '].
+----
+
+<1> Here you can select an element from the dom tree.
+<2> The `on:` part describes which event would trigger the backend service.
++
+With the `service:` I'll create a backend endpoint for this event. (You can
+use me safely because I'll create the endpoint only once.)
++
+In the `before:` you can define the request body.
+
+<3> Here comes the backend action. The parameter is the http request.
++ It is important that you should send a response in every cases!
+
+<4> In the after section you can get and handle the response from the backend.
+
+== What operating system do I need?
+
+I can run natively on Linux.
+
+Actually I should work on Windows too, but because one of
+my dependencies it's still not available. However you can
+use me on Windows too by using https://www.docker.com/[Docker].
+
+For Docker I suggest to run me in headless mode:
+
+    vm-jit/squeak -headless Cuis*.image -s mystartscript.st
+
+== What should I use as a base docker image?
+
+My docker file can be started so:
+
+[source]
+----
+FROM debian:11-slim as base
+
+RUN set -eu; \
+  apt-get update; \
+  apt-get install --assume-yes --no-install-recommends \
+    ca-certificates \
+    libcurl3-gnutls \
+    libfreetype6 \
+    libpulse0 \
+    libaudio2 \
+    libasound2 \
+    nano \
+    ssh \
+    xorg; \
+  apt-get clean;
+
+...
+----
+
+== More examples
+
+There's an other project too which uses me. You can find it here:
+https://sourceforge.net/projects/myworktimesmalltalk/[MyWorktimeSmalltalk].
