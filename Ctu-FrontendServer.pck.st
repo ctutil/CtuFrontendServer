@@ -1,6 +1,6 @@
-'From Cuis7.0 [latest update: #6452] on 27 August 2025 at 6:40:53 pm'!
+'From Cuis7.0 [latest update: #6452] on 31 August 2025 at 9:28:59 pm'!
 'Description '!
-!provides: 'Ctu-FrontendServer' 1 137!
+!provides: 'Ctu-FrontendServer' 1 144!
 !requires: 'Cuis-Web' 1 38 nil!
 !requires: 'Regex-Core' 1 6 nil!
 !requires: 'WebClient' 1 35 nil!
@@ -868,7 +868,7 @@ initializeWithBootstrap5
 		]. 
 	! !
 
-!FSApp methodsFor: 'initialization' stamp: 'ct 8/27/2025 18:40:47'!
+!FSApp methodsFor: 'initialization' stamp: 'ct 8/31/2025 21:28:12'!
 initializeWithBulma
 
 	| d3Server d3s |
@@ -914,26 +914,19 @@ initializeWithBulma
 	
 		    d3s d3NewStatement;
 		           select: '.myapp-fill';
-			    on: 'click' service: '/filloutmydata' before: [''] action: [ :rg |
-				Transcript show: 'service /filloutmydata was called'; cr.
+			    on: 'click' service: '/filloutmydata' before: [
+			       d3s syncFromWeb: model fromPrefix: 'fsdata'.
+			    ] 
+		           action: [ :rg |			
+				model := d3s syncModel: model request: rg.
+				
+				Transcript show: 'The updated name is:', (model at: 'name'); cr.
 				rg send200Response: (WebUtils jsonEncode: model) contentType: 'application/json; charset=utf-8'.
 			   ] 
-		          after: ['
-				var fsdata = JSON.parse(xhr.response);  // helper to do this (no other data is expected) syncToWeb: model
-				// do not use d3 here (we should be as compatible as possible)
-				var fsdatafield = document.querySelector(".fsdata-', ('name'), '");    // key
-				fsdatafield.value = "', (model at: 'name'), '";    // value				
-			   '].
-	
-"
-				e.g.
-				| a |
-
-				a := Dictionary with: #a->#b.
-				a keys do: [:k | Transcript show: k].
-
-"	
-	
+		          after: [
+				d3s syncToWeb: model intoPrefix: 'fsdata'. 
+			   ].
+		
 		     js webRaw: d3s.
 				
 		    request send200Response: (js renderIntoTemplate) 
@@ -1383,6 +1376,45 @@ service: aPath before: jsFunctionBodyBlockBefore action: backendBlock after: jsF
 !D3Server methodsFor: 'server' stamp: 'Ctu 8/7/2022 09:19:35'!
 staticContent: aPath
 	fsServer staticContent: aPath.! !
+
+!D3Server methodsFor: 'server' stamp: 'ct 8/31/2025 21:27:53'!
+syncFromWeb: aModel fromPrefix: aJsVariablePrefix
+	| result |
+	
+	result := 'requestBody = {};'.
+	" FIXME: checked instead of value if checkbox"
+	aModel keys do: [ :k |
+		result := result, 'requestBody.', k, ' = d3.select(".', aJsVariablePrefix ,'-', k,'").property("value");'.		
+	].
+
+	result := result, 'requestBody = JSON.stringify(requestBody);'.
+
+	^result.! !
+
+!D3Server methodsFor: 'server' stamp: 'ct 8/31/2025 21:20:04'!
+syncModel: aModel request: rg
+	"FIXME: error handling"
+	| json updatedModel |
+	
+	updatedModel := Dictionary new.
+	json := WebUtils jsonDecode: (rg content readStream).
+	
+	aModel keys do: [:k |
+		updatedModel at: k put: (json at: k).
+	].
+	
+	^updatedModel.! !
+
+!D3Server methodsFor: 'server' stamp: 'ct 8/31/2025 20:49:40'!
+syncToWeb: aModel intoPrefix: aJsVariablePrefix
+	| result |
+	
+	result := 'var ', aJsVariablePrefix , ' = JSON.parse(xhr.response);'.
+	aModel keys do: [ :k |
+		result := result, 'd3.select(".', aJsVariablePrefix ,'-', k,'").property("value", ', aJsVariablePrefix, '.', k ,');'.
+	].
+
+	^result.! !
 
 !D3Server methodsFor: 'server' stamp: 'tc 12/27/2022 16:59:44'!
 upload: fileField idHeader: fileId service: aPath action: backendBlock afterSuccess: jsFunctionBodyBlockAfterSuccess afterError: jsFunctionBodyBlockAfterError
